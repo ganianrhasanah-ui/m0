@@ -1,5 +1,3 @@
-mkdir -p tools/scripts
-cat > tools/scripts/m2_preflight.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -89,5 +87,3 @@ else
 fi
 
 log "OK: preflight M2 selesai"
-EOF
-chmod +x tools/scripts/m2_preflight.sh

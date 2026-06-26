@@ -1,4 +1,3 @@
-cat > tools/scripts/grade_m2.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -30,5 +29,3 @@ grep -q '\[M2\] early serial online' build/qemu-serial.log
 grep -q '\[M2\] kernel reached controlled halt loop' build/qemu-serial.log
 
 echo "OK: M2 local grading checks passed"
-EOF
-chmod +x tools/scripts/grade_m2.sh

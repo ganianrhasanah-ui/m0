@@ -1,4 +1,3 @@
-cat > tools/scripts/make_iso.sh <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -35,9 +34,6 @@ xorriso -as mkisofs \
   -efi-boot-part --efi-boot-image --protective-msdos-label \
   "$ISO_ROOT" -o "$ISO"
 
-"$LIMINE_DIR/limine" bios-install "$ISO"
 sha256sum "$ISO" | tee build/mcsos.iso.sha256
 
 echo "OK: ISO dibuat pada $ISO"
-EOF
-chmod +x tools/scripts/make_iso.sh
