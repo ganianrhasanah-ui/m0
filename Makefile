@@ -11,7 +11,7 @@ OBJDUMP := objdump
 READELF := readelf
 NM := nm
 
-CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/arch/x86_64/include
+CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/include -Ikernel/arch/x86_64/include
 LDFLAGS := -nostdlib -static -z max-page-size=0x1000 -T linker.ld -Map=$(MAP)
 SRC_C := $(shell find kernel -name '*.c' | LC_ALL=C sort)
 OBJ := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRC_C))
@@ -47,6 +47,11 @@ $(KERNEL): $(OBJ) linker.ld
 
 inspect: $(KERNEL)
 >./tools/scripts/inspect_kernel.sh
+panic: $(KERNEL)
+>./tools/scripts/proof_compile.sh
+
+audit: $(KERNEL)
+>./tools/scripts/m3_audit_elf.sh $(KERNEL)
 
 image: $(KERNEL)
 >./tools/scripts/make_iso.sh
