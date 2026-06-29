@@ -4,7 +4,8 @@
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/version.h>
-
+#include "pic.h"
+#include "pit.h"
 extern char __kernel_start[];
 extern char __kernel_end[];
 
@@ -30,6 +31,11 @@ void kmain(void) {
     log_key_value_hex64("rflags_before_idt", cpu_read_rflags());
 
     x86_64_idt_init();
+pic_remap(PIC_MASTER_OFFSET, PIC_SLAVE_OFFSET);
+pic_mask_all();
+pic_unmask_irq(0);
+pit_configure_hz(100);
+__asm__ volatile ("sti");
     m4_selftest();
 
 #ifdef MCSOS_M4_TRIGGER_BREAKPOINT

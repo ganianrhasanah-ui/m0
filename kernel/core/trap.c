@@ -2,7 +2,8 @@
 #include <mcsos/arch/idt.h>
 #include <mcsos/kernel/log.h>
 #include <mcsos/kernel/panic.h>
-
+#include "pit.h"
+#include "pic.h"
 static const char *exception_names[32] = {
     "#DE Divide Error",
     "#DB Debug",
@@ -66,6 +67,11 @@ static void log_trap_frame(const x86_64_trap_frame_t *frame) {
 void x86_64_trap_dispatch(x86_64_trap_frame_t *frame) {
     KERNEL_ASSERT(frame != (x86_64_trap_frame_t *)0);
     ++trap_count;
+if (frame->vector == PIC_MASTER_OFFSET) {
+    timer_on_irq0();
+    pic_send_eoi(0);
+    return;
+}
 
     log_write("[M4] trap dispatch: ");
     log_writeln(trap_name(frame->vector));
