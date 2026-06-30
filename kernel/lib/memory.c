@@ -39,3 +39,8 @@ void *memmove(void *dest, const void *src, size_t count) {
 
     return dest;
 }
+void kernel_memory_init(void)
+{
+    /* Placeholder untuk M6.
+       Virtual memory dan heap belum diinisialisasi. */
+}

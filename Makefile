@@ -11,26 +11,27 @@ PANIC_MAP := $(BUILD_DIR)/kernel.panic.map
 DISASM := $(BUILD_DIR)/kernel.disasm.txt
 SYMS := $(BUILD_DIR)/kernel.syms.txt
 CC := clang
+HOSTCC ?= cc
 LD := ld.lld
 OBJDUMP := objdump
 READELF := readelf
 NM := nm
 
-COMMON_CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-builtin -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include
-COMMON_ASFLAGS := --target=x86_64-unknown-none-elf -ffreestanding -fno-pic -fno-pie -m64 -mno-red-zone -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include
+COMMON_CFLAGS := --target=x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-builtin -fno-stack-protector -fno-stack-check -fno-pic -fno-pie -fno-lto -m64 -march=x86-64 -mabi=sysv -mno-red-zone -mno-mmx -mno-sse -mno-sse2 -mcmodel=kernel -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include -Iinclude
+COMMON_ASFLAGS := --target=x86_64-unknown-none-elf -ffreestanding -fno-pic -fno-pie -m64 -mno-red-zone -Wall -Wextra -Werror -Ikernel/arch/x86_64/include -Ikernel/include -Iinclude
 CFLAGS := $(COMMON_CFLAGS)
 ASFLAGS := $(COMMON_ASFLAGS)
+M6_CFLAGS := -std=c17 -Wall -Wextra -Werror -ffreestanding -fno-builtin -fno-stack-protector -mno-red-zone -Iinclude
 BP_CFLAGS := $(COMMON_CFLAGS) -DMCSOS_M4_TRIGGER_BREAKPOINT=1
 PANIC_CFLAGS := $(COMMON_CFLAGS) -DMCSOS_M4_TRIGGER_PANIC=1
 LDFLAGS := -nostdlib -static -z max-page-size=0x1000 -T linker.ld
-SRC_C := $(shell find kernel -name '*.c' | LC_ALL=C sort)
+SRC_C := $(shell find kernel src -name '*.c' | LC_ALL=C sort)
 SRC_S := $(shell find kernel -name '*.S' | LC_ALL=C sort)
 OBJ := $(patsubst %.c,$(BUILD_DIR)/normal/%.o,$(SRC_C)) $(patsubst %.S,$(BUILD_DIR)/normal/%.o,$(SRC_S))
 BP_OBJ := $(patsubst %.c,$(BUILD_DIR)/breakpoint/%.o,$(SRC_C)) $(patsubst %.S,$(BUILD_DIR)/breakpoint/%.o,$(SRC_S))
 PANIC_OBJ := $(patsubst %.c,$(BUILD_DIR)/panic/%.o,$(SRC_C)) $(patsubst %.S,$(BUILD_DIR)/panic/%.o,$(SRC_S))
 
-.PHONY: all build breakpoint panic inspect audit clean distclean
-
+.PHONY: all build breakpoint panic inspect audit check-m6 clean distclean
 all: build inspect
 
 build: $(KERNEL)
@@ -96,7 +97,19 @@ audit: inspect breakpoint panic
 >grep -q 'x86_64_exception_stubs' $(SYMS)
 >$(READELF) -S $(KERNEL) | grep -q '.text'
 >$(READELF) -S $(KERNEL) | grep -q '.rodata'
+build/pmm.o: src/pmm.c include/pmm.h include/types.h
+>mkdir -p build
+>$(CC) $(M6_CFLAGS) -c src/pmm.c -o build/pmm.o
 
+build/test_pmm_host: src/pmm.c tests/test_pmm_host.c include/pmm.h include/types.h
+>mkdir -p build
+>$(HOSTCC) -std=c17 -Wall -Wextra -Werror -Iinclude src/pmm.c tests/test_pmm_host.c -o build/test_pmm_host
+
+check-m6: build/pmm.o build/test_pmm_host
+>./build/test_pmm_host
+>nm -u build/pmm.o | tee build/pmm.undefined.txt
+>test ! -s build/pmm.undefined.txt
+>objdump -dr build/pmm.o > build/pmm.objdump.txt
 clean:
 >rm -rf $(BUILD_DIR)
 
