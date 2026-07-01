@@ -5,6 +5,7 @@
 #include <mcsos/kernel/panic.h>
 #include <mcsos/kernel/version.h>
 #include <mcsos/kmem.h>
+#include <mcsos/syscall.h>
 #include "pic.h"
 #include "pit.h"
 extern char __kernel_start[];
@@ -42,7 +43,45 @@ static void m4_selftest(void) {
     KERNEL_ASSERT(x86_64_idt_limit_for_test() == 4095u);
     log_writeln("[M4] selftest: IDT invariants passed");
 }
+static uint64_t k_get_ticks(void) {
+    return timer_ticks();
+}
 
+static void k_yield_current(void) {
+    /* Stub M10 */
+}
+
+static void k_exit_current(int code) {
+    (void)code;
+    /* Stub M10 */
+}
+
+extern void serial_putc(char c);
+
+static int64_t k_write_serial(const char *buf, size_t len) {
+    if (buf == 0) {
+        return -1;
+    }
+
+    for (size_t i = 0; i < len; ++i) {
+        serial_putc(buf[i]);
+    }
+
+    return (int64_t)len;
+}
+static void m10_syscall_smoke_direct(void)
+{
+    int64_t r = mcsos_syscall_dispatch(
+        MCSOS_SYS_PING,
+        0, 0, 0, 0, 0, 0
+    );
+
+    if (r != 0x2605020A) {
+        KERNEL_PANIC("M10 syscall ping failed", 0x4D313050494E47ULL);
+    }
+
+    log_writeln("[M10] syscall ping ok");
+}
 void kmain(void) {
     log_init();
     log_write(MCSOS_NAME);
@@ -63,7 +102,21 @@ pit_configure_hz(100);
 __asm__ volatile ("sti"); 
    m4_selftest();
 m8_heap_bootstrap();
+    mcsos_syscall_ops_t ops = {
+        .get_ticks = k_get_ticks,
+        .yield_current = k_yield_current,
+        .exit_current = k_exit_current,
+        .write_serial = k_write_serial,
+    };
 
+    mcsos_syscall_init(&ops);
+
+    mcsos_syscall_set_user_region((mcsos_user_region_t){
+        .base = 0x0000000000400000ULL,
+        .limit = 0x0000800000000000ULL,
+    });
+
+    m10_syscall_smoke_direct();
 #ifdef MCSOS_M4_TRIGGER_BREAKPOINT
     log_writeln("[M4] triggering intentional breakpoint exception");
     x86_64_trigger_breakpoint_for_test();

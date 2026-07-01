@@ -50,6 +50,12 @@ void x86_64_idt_init(void) {
             (uint64_t)(uintptr_t)x86_64_exception_stubs[vector],
             gate);
     }
+extern void x86_64_syscall_int80_stub(void);
+x86_64_idt_set_gate(
+    0x80,
+    (uint64_t)(uintptr_t)x86_64_syscall_int80_stub,
+    X86_64_IDT_GATE_INTERRUPT
+);
 
     idtr.limit = (uint16_t)(sizeof(idt) - 1);
     idtr.base = (uint64_t)(uintptr_t)&idt[0];
