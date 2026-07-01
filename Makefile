@@ -143,3 +143,36 @@ m8-audit: m8-kmem-freestanding
 >$(OBJDUMP) -dr $(M8_BUILD_DIR)/kmem.freestanding.o > $(M8_BUILD_DIR)/kmem.objdump.txt
 
 m8-all: m8-kmem-host-test m8-audit
+# =========================
+# M9 Scheduler
+# =========================
+
+M9_BUILD_DIR := build/m9
+M9_HOST_CFLAGS := -std=c17 -Wall -Wextra -Werror -DMCSOS_HOST_TEST -Iinclude
+M9_KERNEL_CFLAGS := -target x86_64-unknown-none-elf -std=c17 -ffreestanding -fno-stack-protector -fno-pic -mno-red-zone -Wall -Wextra -Werror -Iinclude
+M9_ASFLAGS := -target x86_64-unknown-none-elf -ffreestanding -fno-stack-protector -fno-pic -mno-red-zone
+
+.PHONY: m9-all m9-host-test m9-freestanding m9-audit m9-clean
+
+m9-all: m9-host-test m9-freestanding m9-audit
+
+$(M9_BUILD_DIR):
+> mkdir -p $(M9_BUILD_DIR)
+
+m9-host-test: $(M9_BUILD_DIR)
+> $(CC) $(M9_HOST_CFLAGS) tests/test_scheduler.c kernel/sched/mcsos_thread.c -o $(M9_BUILD_DIR)/m9_host_test
+> $(M9_BUILD_DIR)/m9_host_test | tee $(M9_BUILD_DIR)/test_scheduler.log
+
+m9-freestanding: $(M9_BUILD_DIR)
+> $(CC) $(M9_KERNEL_CFLAGS) -c kernel/sched/mcsos_thread.c -o $(M9_BUILD_DIR)/mcsos_thread.freestanding.o
+> $(CC) $(M9_ASFLAGS) -c kernel/arch/x86_64/context_switch.S -o $(M9_BUILD_DIR)/context_switch.o
+> $(LD) -r $(M9_BUILD_DIR)/mcsos_thread.freestanding.o $(M9_BUILD_DIR)/context_switch.o -o $(M9_BUILD_DIR)/m9_scheduler_combined.o
+
+m9-audit: m9-freestanding
+> $(NM) -u $(M9_BUILD_DIR)/m9_scheduler_combined.o | tee $(M9_BUILD_DIR)/nm_undefined.log
+> $(READELF) -h $(M9_BUILD_DIR)/m9_scheduler_combined.o > $(M9_BUILD_DIR)/readelf_header.log
+> $(OBJDUMP) -d $(M9_BUILD_DIR)/m9_scheduler_combined.o | grep -E 'mcsos_context_switch|jmp|ret|hlt' | tee $(M9_BUILD_DIR)/objdump_key.log
+> sha256sum $(M9_BUILD_DIR)/m9_host_test $(M9_BUILD_DIR)/m9_scheduler_combined.o | tee $(M9_BUILD_DIR)/sha256.log
+
+m9-clean:
+> rm -rf $(M9_BUILD_DIR)
