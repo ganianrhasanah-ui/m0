@@ -12,6 +12,9 @@ DISASM := $(BUILD_DIR)/kernel.disasm.txt
 SYMS := $(BUILD_DIR)/kernel.syms.txt
 CC := clang
 HOSTCC ?= cc
+M8_HOST_CFLAGS := -std=c17 -Wall -Wextra -Werror -Iinclude
+ M8_BUILD_DIR := build/m8
+M8_KERNEL_CFLAGS := -std=c17 -Wall -Wextra -Werror -Iinclude -ffreestanding -fno-builtin -fno-stack-protector -mno-red-zone
 LD := ld.lld
 OBJDUMP := objdump
 READELF := readelf
@@ -115,3 +118,28 @@ clean:
 
 distclean: clean
 >rm -rf iso_root limine evidence
+build/test_kmem: kernel/mm/kmem.c tests/test_kmem.c include/mcsos/kmem.h
+>mkdir -p build
+>$(HOSTCC) $(M8_HOST_CFLAGS) \
+>kernel/mm/kmem.c \
+>tests/test_kmem.c \
+>-o build/test_kmem
+
+m8-kmem-host-test: build/test_kmem
+>./build/test_kmem
+m8-clean:
+>rm -rf $(M8_BUILD_DIR)
+
+$(M8_BUILD_DIR):
+>mkdir -p $(M8_BUILD_DIR)
+
+m8-kmem-freestanding: | $(M8_BUILD_DIR)
+>$(CC) $(M8_KERNEL_CFLAGS) -c kernel/mm/kmem.c -o $(M8_BUILD_DIR)/kmem.freestanding.o
+
+m8-audit: m8-kmem-freestanding
+>$(NM) -u $(M8_BUILD_DIR)/kmem.freestanding.o | tee $(M8_BUILD_DIR)/nm_u.txt
+>test ! -s $(M8_BUILD_DIR)/nm_u.txt
+>$(READELF) -h $(M8_BUILD_DIR)/kmem.freestanding.o > $(M8_BUILD_DIR)/readelf_h.txt
+>$(OBJDUMP) -dr $(M8_BUILD_DIR)/kmem.freestanding.o > $(M8_BUILD_DIR)/kmem.objdump.txt
+
+m8-all: m8-kmem-host-test m8-audit
